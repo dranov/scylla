@@ -52,6 +52,7 @@ index_t log::next_idx() const {
     return last_idx() + index_t(1);
 }
 
+// INSTRUMENT_FUNC
 void log::truncate_uncommitted(index_t idx) {
     assert(idx >= _first_idx);
     auto it = _log.begin() + (idx - _first_idx);
@@ -96,12 +97,14 @@ std::pair<bool, term_t> log::match_term(index_t idx, term_t term) const {
     if (idx == 0) {
         // Special case of empty log on leader,
         // TLA+ line 324.
+        // INSTRUMENT_BB
         return std::make_pair(true, term_t(0));
     }
 
     // We got an AppendEntries inside out snapshot, it has to much by
     // log matching property
     if (idx < _snapshot.idx) {
+        // INSTRUMENT_BB
         return std::make_pair(true, last_term());
     }
 
@@ -114,6 +117,7 @@ std::pair<bool, term_t> log::match_term(index_t idx, term_t term) const {
 
         if (i >= _log.size()) {
             // We have a gap between the follower and the leader.
+            // INSTRUMENT_BB
             return std::make_pair(false, term_t(0));
         }
 
@@ -143,24 +147,29 @@ const configuration& log::last_conf_for(index_t idx) const {
 
     if (!_last_conf_idx) {
         assert(!_prev_conf_idx);
+        // INSTRUMENT_BB
         return _snapshot.config;
     }
 
     if (idx >= _last_conf_idx) {
+        // INSTRUMENT_BB
         return std::get<configuration>(get_entry(_last_conf_idx)->data);
     }
 
     if (!_prev_conf_idx) {
         // There are no config entries between _snapshot and _last_conf_idx.
+        // INSTRUMENT_BB
         return _snapshot.config;
     }
 
     if (idx >= _prev_conf_idx) {
+        // INSTRUMENT_BB
         return std::get<configuration>(get_entry(_prev_conf_idx)->data);
     }
 
     for (; idx > _snapshot.idx; --idx) {
         if (auto cfg = std::get_if<configuration>(&get_entry(idx)->data)) {
+            // INSTRUMENT_BB
             return *cfg;
         }
     }
@@ -204,17 +213,21 @@ index_t log::maybe_append(std::vector<log_entry_ptr>&& entries) {
 
 const configuration* log::get_prev_configuration() const {
     if (_prev_conf_idx) {
+        // INSTRUMENT_BB
         return &std::get<configuration>(get_entry(_prev_conf_idx)->data);
     }
 
     if (_last_conf_idx > _snapshot.idx) {
+        // INSTRUMENT_BB
         return &_snapshot.config;
     }
 
     // _last_conf_idx <= _snapshot.idx means we only have the last configuration (from the snapshot).
+    // INSTRUMENT_BB
     return nullptr;
 }
 
+// INSTRUMENT_FUNC
 size_t log::apply_snapshot(snapshot_descriptor&& snp, size_t trailing) {
     assert (snp.idx > _snapshot.idx);
 

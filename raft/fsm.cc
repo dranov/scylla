@@ -131,7 +131,7 @@ void fsm::advance_commit_idx(index_t leader_commit_idx) {
     }
 }
 
-
+// INSTRUMENT_FUNC
 void fsm::update_current_term(term_t current_term)
 {
     assert(_current_term < current_term);
@@ -149,6 +149,7 @@ void fsm::reset_election_timeout() {
                             _log.get_configuration().current.size())})};
 }
 
+// INSTRUMENT_FUNC
 void fsm::become_leader() {
     assert(!std::holds_alternative<leader>(_state));
     _state.emplace<leader>(_config.max_log_size, *this);
@@ -166,6 +167,7 @@ void fsm::become_leader() {
         _my_id, _log.stable_idx(), _log.last_idx());
 }
 
+// INSTRUMENT_FUNC
 void fsm::become_follower(server_id leader) {
     if (leader == _my_id) {
         on_internal_error(logger, "fsm cannot become a follower of itself");
@@ -178,6 +180,7 @@ void fsm::become_follower(server_id leader) {
     }
 }
 
+// INSTRUMENT_FUNC
 void fsm::become_candidate(bool is_prevote, bool is_leadership_transfer) {
     // When starting a campain we need to reset current leader otherwise
     // disruptive server prevention will stall an election if quorum of nodes
@@ -581,6 +584,7 @@ void fsm::tick() {
     }
 }
 
+// INSTRUMENT_FUNC
 void fsm::append_entries(server_id from, append_request&& request) {
     logger.trace("append_entries[{}] received ct={}, prev idx={} prev term={} commit idx={}, idx={} num entries={}",
             _my_id, request.current_term, request.prev_log_idx, request.prev_log_term,
@@ -639,6 +643,7 @@ void fsm::append_entries_reply(server_id from, append_reply&& reply) {
     }
 
     if (progress.state == follower_progress::state::SNAPSHOT) {
+        // INSTRUMENT_BB
         logger.trace("append_entries_reply[{}->{}]: ignored in snapshot state", _my_id, from);
         return;
     }
@@ -647,6 +652,7 @@ void fsm::append_entries_reply(server_id from, append_reply&& reply) {
 
     if (std::holds_alternative<append_reply::accepted>(reply.result)) {
         // accepted
+        // INSTRUMENT_BB
         index_t last_idx = std::get<append_reply::accepted>(reply.result).last_new_idx;
 
         logger.trace("append_entries_reply[{}->{}]: accepted match={} last index={}",
@@ -678,6 +684,7 @@ void fsm::append_entries_reply(server_id from, append_reply&& reply) {
         }
     } else {
         // rejected
+        // INSTRUMENT_BB
         append_reply::rejected rejected = std::get<append_reply::rejected>(reply.result);
 
         logger.trace("append_entries_reply[{}->{}]: rejected match={} index={}",
@@ -787,8 +794,10 @@ void fsm::request_vote_reply(server_id from, vote_reply&& reply) {
 
     switch (state.votes.tally_votes()) {
     case vote_result::UNKNOWN:
+        // INSTRUMENT_BB
         break;
     case vote_result::WON:
+        // INSTRUMENT_BB
         if (state.is_prevote) {
             logger.trace("request_vote_reply[{}] won prevote", _my_id);
             become_candidate(false);
@@ -798,6 +807,7 @@ void fsm::request_vote_reply(server_id from, vote_reply&& reply) {
         }
         break;
     case vote_result::LOST:
+        // INSTRUMENT_BB
         become_follower(server_id{});
         break;
     }
@@ -935,6 +945,7 @@ void fsm::install_snapshot_reply(server_id from, snapshot_reply&& reply) {
 
     if (reply.success) {
         // If snapshot was successfully transferred start replication immediately
+        // INSTRUMENT_BB
         replicate_to(progress, false);
     }
     // Otherwise wait for a heartbeat. Next attempt will move us to SNAPSHOT state
@@ -942,6 +953,7 @@ void fsm::install_snapshot_reply(server_id from, snapshot_reply&& reply) {
 }
 
 bool fsm::apply_snapshot(snapshot_descriptor snp, size_t trailing, bool local) {
+    // INSTRUMENT_BB
     logger.trace("apply_snapshot[{}]: current term: {}, term: {}, idx: {}, id: {}, local: {}",
             _my_id, _current_term, snp.term, snp.idx, snp.id, local);
     // If the snapshot is locally generated, all entries up to its index must have been locally applied,
@@ -955,6 +967,7 @@ bool fsm::apply_snapshot(snapshot_descriptor snp, size_t trailing, bool local) {
     // leading to serializability violations.
     const auto& current_snp = _log.get_snapshot();
     if (snp.idx <= current_snp.idx || (!local && snp.idx <= _commit_idx)) {
+        // INSTRUMENT_BB
         logger.error("apply_snapshot[{}]: ignore outdated snapshot {}/{} current one is {}/{}, commit_idx={}",
                         _my_id, snp.id, snp.idx, current_snp.id, current_snp.idx, _commit_idx);
         return false;
@@ -971,6 +984,7 @@ bool fsm::apply_snapshot(snapshot_descriptor snp, size_t trailing, bool local) {
     return true;
 }
 
+// INSTRUMENT_FUNC
 void fsm::transfer_leadership(logical_clock::duration timeout) {
     check_is_leader();
     auto leader = leader_state().tracker.find(_my_id);

@@ -375,10 +375,13 @@ public:
 
     server_id current_leader() const {
         if (is_leader()) {
+            // INSTRUMENT_BB
             return _my_id;
         } else if (is_candidate()) {
+            // INSTRUMENT_BB
             return {};
         } else {
+            // INSTRUMENT_BB
             return follower_state().current_leader;
         }
     }
@@ -534,6 +537,7 @@ void fsm::step(server_id from, Message&& msg) {
     // follower state. If a server receives a request with
     // a stale term number, it rejects the request.
     if (msg.current_term > _current_term) {
+        // INSTRUMENT_BB
         server_id leader{};
 
         logger.trace("{} [term: {}] received a message with higher term from {} [term: {}]",
@@ -569,6 +573,7 @@ void fsm::step(server_id from, Message&& msg) {
             update_current_term(msg.current_term);
         }
     } else if (msg.current_term < _current_term) {
+        // INSTRUMENT_BB
         if constexpr (std::is_same_v<Message, append_request> || std::is_same_v<Message, read_quorum>) {
             // Instructs the leader to step down.
             append_reply reply{_current_term, _commit_idx, append_reply::rejected{index_t{}, _log.last_idx()}};
@@ -588,6 +593,7 @@ void fsm::step(server_id from, Message&& msg) {
         return;
 
     } else /* _current_term == msg.current_term */ {
+        // INSTRUMENT_BB
         if constexpr (std::is_same_v<Message, append_request> ||
                       std::is_same_v<Message, install_snapshot> ||
                       std::is_same_v<Message, read_quorum>) {

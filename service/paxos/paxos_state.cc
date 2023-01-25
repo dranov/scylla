@@ -229,6 +229,7 @@ future<> paxos_state::learn(storage_proxy& sp, schema_ptr schema, proposal decis
     });
 }
 
+// INSTRUMENT_FUNC
 future<> paxos_state::prune(schema_ptr schema, const partition_key& key, utils::UUID ballot, clock_type::time_point timeout,
         tracing::trace_state_ptr tr_state) {
     logger.debug("Delete paxos state for ballot {}", ballot);

@@ -50,11 +50,13 @@ bool follower_progress::is_stray_reject(const append_reply::rejected& rejected) 
     return false;
 }
 
+// INSTRUMENT_FUNC
 void follower_progress::become_probe() {
     state = state::PROBE;
     probe_sent = false;
 }
 
+// INSTRUMENT_FUNC
 void follower_progress::become_pipeline() {
     if (state != state::PIPELINE) {
         // If a previous request was accepted, move to "pipeline" state
@@ -64,6 +66,7 @@ void follower_progress::become_pipeline() {
     }
 }
 
+// INSTRUMENT_FUNC
 void follower_progress::become_snapshot(index_t snp_idx) {
     state = state::SNAPSHOT;
     // If snapshot transfer succeeds, start replicating from the

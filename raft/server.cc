@@ -594,6 +594,7 @@ void server_impl::read_quorum_reply(server_id from, struct read_quorum_reply rea
     _fsm->step(from, std::move(read_quorum_reply));
 }
 
+// INSTRUMENT_FUNC
 void server_impl::notify_waiters(std::map<index_t, op_status>& waiters,
         const std::vector<log_entry_ptr>& entries) {
     index_t commit_idx = entries.back()->idx;
@@ -637,6 +638,7 @@ void server_impl::notify_waiters(std::map<index_t, op_status>& waiters,
     }
 }
 
+// INSTRUMENT_FUNC
 void server_impl::drop_waiters(std::optional<index_t> idx) {
     auto drop = [&] (std::map<index_t, op_status>& waiters) {
         while (waiters.size() != 0) {
