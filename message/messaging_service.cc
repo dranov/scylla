@@ -623,7 +623,6 @@ gms::inet_address messaging_service::get_public_endpoint_for(const gms::inet_add
 }
 
 shared_ptr<messaging_service::rpc_protocol_client_wrapper> messaging_service::get_rpc_client(messaging_verb verb, msg_addr id) {
-    // INSTRUMENT_BB
     assert(!_shutting_down);
     auto idx = get_rpc_client_idx(verb);
     auto it = _clients[idx].find(id);

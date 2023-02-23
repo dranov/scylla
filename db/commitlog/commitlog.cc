@@ -2173,7 +2173,6 @@ future<db::rp_handle> db::commitlog::add(const cf_id_type& id,
 
 future<db::rp_handle> db::commitlog::add_entry(const cf_id_type& id, const commitlog_entry_writer& cew, timeout_clock::time_point timeout)
 {
-    // INSTRUMENT_BB
     assert(id == cew.schema()->id());
 
     class cl_entry_writer final : public entry_writer {

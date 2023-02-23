@@ -4741,7 +4741,6 @@ inet_address_vector_replica_set storage_proxy::get_live_endpoints(replica::keysp
 void storage_proxy::sort_endpoints_by_proximity(inet_address_vector_replica_set& eps) {
     locator::i_endpoint_snitch::get_local_snitch_ptr()->sort_by_proximity(utils::fb_utilities::get_broadcast_address(), eps);
     // FIXME: before dynamic snitch is implement put local address (if present) at the beginning
-    // INSTRUMENT_BB
     auto it = boost::range::find(eps, utils::fb_utilities::get_broadcast_address());
     if (it != eps.end() && it != eps.begin()) {
         std::iter_swap(it, eps.begin());

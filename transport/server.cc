@@ -490,7 +490,6 @@ future<foreign_ptr<std::unique_ptr<cql_server::response>>>
             // additional information, such as invalid_request_exception.
             // TODO: consider listing those types explicitly, instead of the
             // catch-all type cassandra_exception.
-            // INSTRUMENT_BB
             try { ++_server._stats.errors[ex.code()]; } catch(...) {}
             return make_error(stream, ex.code(), ex.what(), trace_state);
         } catch (std::exception& ex) {
