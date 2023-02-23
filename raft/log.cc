@@ -52,8 +52,8 @@ index_t log::next_idx() const {
     return last_idx() + index_t(1);
 }
 
-// INSTRUMENT_FUNC
 void log::truncate_uncommitted(index_t idx) {
+    // INSTRUMENT_BB
     assert(idx >= _first_idx);
     auto it = _log.begin() + (idx - _first_idx);
     _log.erase(it, _log.end());
@@ -62,6 +62,7 @@ void log::truncate_uncommitted(index_t idx) {
         // If _prev_conf_idx is 0, this log does not contain any
         // other configuration changes, since no two uncommitted
         // configuration changes can be in progress.
+        // INSTRUMENT_BB
         assert(_prev_conf_idx < _last_conf_idx);
         _last_conf_idx = _prev_conf_idx;
         _prev_conf_idx = index_t{0};
@@ -89,6 +90,7 @@ term_t log::last_term() const {
 }
 
 void log::stable_to(index_t idx) {
+    // INSTRUMENT_BB
     assert(idx <= last_idx());
     _stable_idx = idx;
 }
@@ -200,10 +202,12 @@ index_t log::maybe_append(std::vector<log_entry_ptr>&& entries) {
             // If an existing entry conflicts with a new one (same
             // index but different terms), delete the existing
             // entry and all that follow it (§5.3).
+            // INSTRUMENT_BB
             assert(e->idx > _snapshot.idx);
             truncate_uncommitted(e->idx);
         }
         // Assert log monotonicity
+        // INSTRUMENT_BB
         assert(e->idx == next_idx());
         emplace_back(std::move(e));
     }

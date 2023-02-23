@@ -62,6 +62,7 @@ void discovery::step(const peer_list& peers) {
             // If we have this peer, its ID must be the
             // same as we know (with the exceptions of seeds,
             // for which servers might not know ids at first).
+            // INSTRUMENT_BB
             assert(it == _peers.end() || it->id == addr.id || addr.id == raft::server_id{});
         }
     }
@@ -99,6 +100,7 @@ discovery::peer_list discovery::request(const peer_list& peers) {
 }
 
 void discovery::response(raft::server_address from, const peer_list& peers) {
+    // INSTRUMENT_BB
     assert(_peers.contains(from));
     _responded.emplace(from);
     step(peers);

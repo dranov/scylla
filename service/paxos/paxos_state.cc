@@ -43,6 +43,7 @@ future<paxos_state::guard> paxos_state::get_cas_lock(const dht::token& key, cloc
     co_return m;
 }
 
+// INSTRUMENT_FUNC
 future<prepare_response> paxos_state::prepare(storage_proxy& sp, tracing::trace_state_ptr tr_state, schema_ptr schema,
         const query::read_command& cmd, const partition_key& key, utils::UUID ballot,
         bool only_digest, query::digest_algorithm da, clock_type::time_point timeout) {
@@ -123,6 +124,7 @@ future<prepare_response> paxos_state::prepare(storage_proxy& sp, tracing::trace_
     });
 }
 
+// INSTRUMENT_FUNC
 future<bool> paxos_state::accept(storage_proxy& sp, tracing::trace_state_ptr tr_state, schema_ptr schema, dht::token token, const proposal& proposal,
         clock_type::time_point timeout) {
     return utils::get_local_injector().inject("paxos_accept_proposal_timeout", timeout,
@@ -163,6 +165,7 @@ future<bool> paxos_state::accept(storage_proxy& sp, tracing::trace_state_ptr tr_
     });
 }
 
+// INSTRUMENT_FUNC
 future<> paxos_state::learn(storage_proxy& sp, schema_ptr schema, proposal decision, clock_type::time_point timeout,
         tracing::trace_state_ptr tr_state) {
     if (utils::get_local_injector().enter("paxos_error_before_learn")) {

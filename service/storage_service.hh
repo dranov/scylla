@@ -718,6 +718,7 @@ private:
 public:
     future<> move(sstring new_token) {
         // FIXME: getPartitioner().getTokenFactory().validate(newToken);
+        // INSTRUMENT_BB
         return move(dht::token::from_sstring(new_token));
     }
 

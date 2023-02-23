@@ -329,6 +329,7 @@ future<> server_impl::start() {
     co_return;
 }
 
+// INSTRUMENT_FUNC
 future<> server_impl::wait_for_leader() {
     if (!_leader_promise) {
         _leader_promise.emplace();
@@ -343,7 +344,7 @@ future<> server_impl::wait_for_entry(entry_id eid, wait_type type) {
     if (eid.idx <= _fsm->commit_idx()) {
         if ((type == wait_type::committed) ||
             (type == wait_type::applied && eid.idx <= _applied_idx)) {
-
+            // INSTRUMENT_BB
             auto term = _fsm->log_term_for(eid.idx);
 
             _stats.waiters_awoken++;
@@ -368,6 +369,7 @@ future<> server_impl::wait_for_entry(entry_id eid, wait_type type) {
     auto [it, inserted] = container.emplace(eid.idx, op_status{eid.term, promise<>()});
     if (!inserted) {
         // No two leaders can exist with the same term.
+        // INSTRUMENT_BB
         assert(it->second.term != eid.term);
 
         auto term_of_commit_idx = *_fsm->log_term_for(_fsm->commit_idx());
@@ -559,21 +561,25 @@ future<> server_impl::modify_config(std::vector<server_address> add, std::vector
     }
 }
 
+// INSTRUMENT_FUNC
 void server_impl::append_entries(server_id from, append_request append_request) {
     _stats.append_entries_received++;
     _fsm->step(from, std::move(append_request));
 }
 
+// INSTRUMENT_FUNC
 void server_impl::append_entries_reply(server_id from, append_reply reply) {
     _stats.append_entries_reply_received++;
     _fsm->step(from, std::move(reply));
 }
 
+// INSTRUMENT_FUNC
 void server_impl::request_vote(server_id from, vote_request vote_request) {
     _stats.request_vote_received++;
     _fsm->step(from, std::move(vote_request));
 }
 
+// INSTRUMENT_FUNC
 void server_impl::request_vote_reply(server_id from, vote_reply vote_reply) {
     _stats.request_vote_reply_received++;
     _fsm->step(from, std::move(vote_reply));
@@ -609,6 +615,7 @@ void server_impl::notify_waiters(std::map<index_t, op_status>& waiters,
 
         // if there is a waiter entry with an index smaller than first entry
         // it means that notification is out of order which is prohibited
+        // INSTRUMENT_BB
         assert(entry_idx >= first_idx);
 
         waiters.erase(it);
@@ -905,6 +912,7 @@ future<snapshot_reply> server_impl::apply_snapshot(server_id from, install_snaps
     try {
         reply = co_await _snapshot_application_done[from].get_future();
     } catch (...) {
+        // INSTRUMENT_BB
         logger.error("apply_snapshot[{}] failed with {}", _id, std::current_exception());
     }
     if (!reply.success) {
@@ -941,6 +949,7 @@ future<> server_impl::applier_fiber() {
 
                 index_t last_idx = batch.back()->idx;
                 term_t last_term = batch.back()->term;
+                // INSTRUMENT_BB
                 assert(last_idx == _applied_idx + batch.size());
 
                 boost::range::copy(
@@ -985,6 +994,7 @@ future<> server_impl::applier_fiber() {
                    _stats.snapshots_taken++;
                }
             } else {
+                // INSTRUMENT_BB
                 snapshot_descriptor& snp = std::get<1>(v);
                 assert(snp.idx >= _applied_idx);
                 // Apply snapshot it to the state machine
@@ -998,8 +1008,10 @@ future<> server_impl::applier_fiber() {
             signal_applied();
         }
     } catch(stop_apply_fiber& ex) {
+        // INSTRUMENT_BB
         // the fiber is aborted
     } catch (...) {
+        // INSTRUMENT_BB
         logger.error("[{}] applier fiber stopped because of the error: {}", _id, std::current_exception());
     }
     co_return;

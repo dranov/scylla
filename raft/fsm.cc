@@ -76,6 +76,7 @@ const log_entry& fsm::add_entry(T command) {
             // start another membership change once a majority of
             // the old cluster has moved to operating under the
             // rules of C_new.
+            // INSTRUMENT_BB
             logger.trace("[{}] A{}configuration change at index {} is not yet committed (config {}) (commit_idx: {})",
                 _my_id, _log.get_configuration().is_joint() ? " joint " : " ",
                 _log.last_conf_idx(), _log.get_configuration(), _commit_idx);
@@ -233,6 +234,7 @@ void fsm::become_candidate(bool is_prevote, bool is_leadership_transfer) {
         // This means we must still have access to the previous configuration.
         // Become a candidate only if we were previously a voter.
         auto prev_cfg = _log.get_prev_configuration();
+        // INSTRUMENT_BB
         assert(prev_cfg);
         if (!prev_cfg->can_vote(_my_id)) {
             // We weren't a voter before.
@@ -503,14 +505,17 @@ void fsm::tick_leader() {
             switch(progress.state) {
             case follower_progress::state::PROBE:
                 // allow one probe to be resent per follower per time tick
+                // INSTRUMENT_BB
                 progress.probe_sent = false;
                 break;
             case follower_progress::state::PIPELINE:
+                // INSTRUMENT_BB
                 if (progress.in_flight == follower_progress::max_in_flight) {
                     progress.in_flight--; // allow one more packet to be sent
                 }
                 break;
             case follower_progress::state::SNAPSHOT:
+                // INSTRUMENT_BB
                 continue;
             }
             if (progress.match_idx < _log.last_idx() || progress.commit_idx < _commit_idx) {
@@ -629,6 +634,7 @@ void fsm::append_entries_reply(server_id from, append_reply&& reply) {
 
     follower_progress* opt_progress = leader_state().tracker.find(from);
     if (opt_progress == nullptr) {
+        // INSTRUMENT_BB
         // A message from a follower removed from the
         // configuration.
         return;
@@ -636,6 +642,7 @@ void fsm::append_entries_reply(server_id from, append_reply&& reply) {
     follower_progress& progress = *opt_progress;
 
     if (progress.state == follower_progress::state::PIPELINE) {
+        // INSTRUMENT_BB
         if (progress.in_flight) {
             // in_flight is not precise, so do not let it underflow
             progress.in_flight--;
@@ -743,6 +750,7 @@ void fsm::request_vote(server_id from, vote_request&& request) {
 
     // ...and we believe the candidate is up to date.
     if (can_vote && _log.is_up_to_date(request.last_log_idx, request.last_log_term)) {
+        // INSTRUMENT_BB
 
         logger.trace("{} [term: {}, index: {}, last log term: {}, voted_for: {}] "
             "voted for {} [log_term: {}, log_index: {}]",
@@ -770,6 +778,7 @@ void fsm::request_vote(server_id from, vote_request&& request) {
         // viable candidate, so it should not reset its election
         // timer, to avoid election disruption by non-viable
         // candidates.
+        // INSTRUMENT_BB
         logger.trace("{} [term: {}, index: {}, log_term: {}, voted_for: {}] "
             "rejected vote for {} [current_term: {}, log_term: {}, log_index: {}, is_prevote: {}]",
             _my_id, _current_term, _log.last_idx(), _log.last_term(), _voted_for,
@@ -959,6 +968,7 @@ bool fsm::apply_snapshot(snapshot_descriptor snp, size_t trailing, bool local) {
     // If the snapshot is locally generated, all entries up to its index must have been locally applied,
     // so in particular they must have been observed as committed.
     // Remote snapshots are only applied if we're a follower.
+    // INSTRUMENT_BB
     assert((local && snp.idx <= _observed._commit_idx) || (!local && is_follower()));
 
     // We don't apply snapshots older than the last applied one.
@@ -984,13 +994,13 @@ bool fsm::apply_snapshot(snapshot_descriptor snp, size_t trailing, bool local) {
     return true;
 }
 
-// INSTRUMENT_FUNC
 void fsm::transfer_leadership(logical_clock::duration timeout) {
     check_is_leader();
     auto leader = leader_state().tracker.find(_my_id);
     if (configuration::voter_count(get_configuration().current) == 1 && leader && leader->can_vote) {
         // If there is only one voter and it is this node we cannot have another node
         // to transfer leadership to
+        // INSTRUMENT_BB
         throw raft::no_other_voting_member();
     }
 
@@ -1001,6 +1011,7 @@ void fsm::transfer_leadership(logical_clock::duration timeout) {
     for (auto&& [_, p] : leader_state().tracker) {
         if (p.id != _my_id && p.can_vote && p.match_idx == _log.last_idx()) {
             send_timeout_now(p.id);
+            // INSTRUMENT_BB
             break;
         }
     }
@@ -1031,6 +1042,7 @@ void fsm::broadcast_read_quorum(read_id id) {
 }
 
 void fsm::handle_read_quorum_reply(server_id from, const read_quorum_reply& reply) {
+    // INSTRUMENT_BB
     assert(is_leader());
     logger.trace("handle_read_quorum_reply[{}] got reply from {} for id {}", _my_id, from, reply.id);
     auto& state = leader_state();
@@ -1045,12 +1057,14 @@ void fsm::handle_read_quorum_reply(server_id from, const read_quorum_reply& repl
 
     if (reply.id <= state.max_read_id_with_quorum) {
         // We already have a quorum for a more resent id, so no need to recalculate
+        // INSTRUMENT_BB
         return;
     }
 
     read_id new_committed_read = leader_state().tracker.committed(state.max_read_id_with_quorum);
 
     if (new_committed_read <= state.max_read_id_with_quorum) {
+        // INSTRUMENT_BB
         return; // nothing new is committed
     }
 
@@ -1071,6 +1085,7 @@ std::optional<std::pair<read_id, index_t>> fsm::start_read_barrier(server_id req
     }
 
     auto term_for_commit_idx = _log.term_for(_commit_idx);
+    // INSTRUMENT_BB
     assert(term_for_commit_idx);
 
     if (*term_for_commit_idx != _current_term) {

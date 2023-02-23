@@ -279,6 +279,7 @@ private:
 
     utils::observer<> make_stop_request_observer(utils::observable<>& sro) {
         return sro.observe([this] () mutable {
+            // INSTRUMENT_BB
             assert(!_unclosed_partition);
             consume_end_of_stream();
         });
@@ -740,6 +741,7 @@ private:
         // - add support to merge summary (message: Partition merge counts were {%s}.).
         // - there is no easy way, currently, to know the exact number of total partitions.
         // By the time being, using estimated key count.
+        // INSTRUMENT_BB
         log_info("{} {} sstables to {}. {} to {} (~{}% of original) in {}ms = {}. ~{} total partitions merged to {}.",
                 report_finish_desc(),
                 _input_sstable_generations.size(), new_sstables_msg, pretty_printed_data_size(_start_size), pretty_printed_data_size(_end_size), int(ratio * 100),

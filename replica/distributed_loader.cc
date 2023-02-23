@@ -457,6 +457,7 @@ future<> distributed_loader::handle_sstables_pending_delete(sstring pending_dele
 future<> distributed_loader::populate_column_family(distributed<replica::database>& db, sstring sstdir, sstring ks, sstring cf, allow_offstrategy_compaction do_allow_offstrategy_compaction, must_exist dir_must_exist) {
     dblog.debug("Populating {}/{}/{} allow_offstrategy_compaction={} must_exist={}", ks, cf, sstdir, do_allow_offstrategy_compaction, dir_must_exist);
     return async([&db, sstdir = std::move(sstdir), ks = std::move(ks), cf = std::move(cf), do_allow_offstrategy_compaction, dir_must_exist] {
+        // INSTRUMENT_BB
         assert(this_shard_id() == 0);
 
         if (!file_exists(sstdir).get0()) {

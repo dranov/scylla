@@ -35,6 +35,7 @@ raft_group0::raft_group0(seastar::abort_source& abort_source,
 }
 
 seastar::future<raft::server_address> raft_group0::load_or_create_my_addr() {
+    // INSTRUMENT_BB
     assert(this_shard_id() == 0);
     raft::server_address my_addr;
     my_addr.id = raft::server_id{co_await db::system_keyspace::get_raft_server_id()};
@@ -162,6 +163,7 @@ raft_group0::discover_group0(raft::server_address my_addr) {
 }
 
 future<> raft_group0::join_group0() {
+    // INSTRUMENT_BB
     assert(this_shard_id() == 0);
     if (!_raft_gr.is_enabled()) {
         co_return;
@@ -229,6 +231,7 @@ future<> raft_group0::leave_group0(std::optional<gms::inet_address> node) {
     if (!_raft_gr.is_enabled()) {
         co_return;
     }
+    // INSTRUMENT_BB
     assert(this_shard_id() == 0);
     raft::server_address my_addr;
     raft::server_id remove_addr;

@@ -238,6 +238,7 @@ void messaging_service::do_start_listen() {
     // FIXME: we don't set so.tcp_nodelay, because we can't tell at this point whether the connection will come from a
     //        local or remote datacenter, and whether or not the connection will be used for gossip. We can fix
     //        the first by wrapping its server_socket, but not the second.
+    // INSTRUMENT_BB
     auto limits = rpc_resource_limits(_cfg.rpc_memory_limit);
     limits.isolate_connection = [this] (sstring isolation_cookie) {
         rpc::isolation_config cfg;
@@ -622,6 +623,7 @@ gms::inet_address messaging_service::get_public_endpoint_for(const gms::inet_add
 }
 
 shared_ptr<messaging_service::rpc_protocol_client_wrapper> messaging_service::get_rpc_client(messaging_verb verb, msg_addr id) {
+    // INSTRUMENT_BB
     assert(!_shutting_down);
     auto idx = get_rpc_client_idx(verb);
     auto it = _clients[idx].find(id);
@@ -725,6 +727,7 @@ shared_ptr<messaging_service::rpc_protocol_client_wrapper> messaging_service::ge
                                     remote_addr, laddr);
 
     auto res = _clients[idx].emplace(id, shard_info(std::move(client)));
+    // INSTRUMENT_BB
     assert(res.second);
     it = res.first;
     uint32_t src_cpu_id = this_shard_id();
@@ -1062,6 +1065,7 @@ future<> messaging_service::unregister_replication_finished() {
 }
 future<> messaging_service::send_replication_finished(msg_addr id, inet_address from) {
     // FIXME: getRpcTimeout : conf.request_timeout_in_ms
+    // INSTRUMENT_BB
     return send_message_timeout<void>(this, messaging_verb::REPLICATION_FINISHED, std::move(id), 10000ms, std::move(from));
 }
 

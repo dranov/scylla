@@ -663,6 +663,7 @@ public:
     // See class comment for info
     future<sseg_ptr> flush() {
         auto me = shared_from_this();
+        // INSTRUMENT_BB
         assert(me.use_count() > 1);
         uint64_t pos = _file_pos;
 
@@ -674,12 +675,14 @@ public:
 
         // Run like this to ensure flush ordering, and making flushes "waitable"
         co_await _pending_ops.run_with_ordered_post_op(rp, [] {}, [&] {
+            // INSTRUMENT_BB
             assert(_pending_ops.has_operation(rp));
             return do_flush(pos);
         });
         co_return me;
     }
     future<sseg_ptr> terminate() {
+        // INSTRUMENT_BB
         assert(_closed);
         if (!std::exchange(_terminated, true)) {
             // write a terminating zero block iff we are ending (a reused)
@@ -722,10 +725,12 @@ public:
             co_await _file.flush();
             // TODO: retry/ignore/fail/stop - optional behaviour in origin.
             // we fast-fail the whole commit.
+            // INSTRUMENT_BB
             _flush_pos = std::max(pos, _flush_pos);
             ++_segment_manager->totals.flush_count;
             clogger.trace("{} synced to {}", *this, _flush_pos);
         } catch (...) {
+            // INSTRUMENT_BB
             clogger.error("Failed to flush commits to disk: {}", std::current_exception());
             throw;
         }
@@ -782,6 +787,7 @@ public:
         _buffer_ostream = { };
         _num_allocs = 0;
 
+        // INSTRUMENT_BB
         assert(me.use_count() > 1);
 
         auto out = buf.get_ostream();
@@ -815,6 +821,7 @@ public:
 
             clogger.trace("Writing {} entries, {} k in {} -> {}", num, size, off, off + size);
         } else {
+            // INSTRUMENT_BB
             assert(num == 0);
             assert(_closed);
             clogger.trace("Terminating {} at pos {}", *this, _file_pos);
@@ -828,6 +835,7 @@ public:
         co_await _pending_ops.run_with_ordered_post_op(rp, [&]() -> future<> {
             auto view = fragmented_temporary_buffer::view(buf);
             view.remove_suffix(buf.size_bytes() - size);
+            // INSTRUMENT_BB
             assert(size == view.size_bytes());
 
             if (view.empty()) {
@@ -866,6 +874,7 @@ public:
                     // TODO: retry/ignore/fail/stop - optional behaviour in origin.
                     // we fast-fail the whole commit.
                 } catch (...) {
+                    // INSTRUMENT_BB
                     clogger.error("Failed to persist commits to disk for {}: {}", *this, std::current_exception());
                     throw;
                 }
@@ -901,6 +910,7 @@ public:
                 replay_position rp(_desc.id, position_type(fp));
                 co_await _pending_ops.wait_for_pending(rp, timeout);
                 
+                // INSTRUMENT_BB
                 assert(_segment_manager->cfg.mode != sync_mode::BATCH || _flush_pos > fp);
                 if (_flush_pos <= fp) {
                     // previous op we were waiting for was not sync one, so it did not flush
@@ -917,6 +927,7 @@ public:
             // we should close the segment.
             // TODO: should we also trunctate away any partial write
             // we did?
+            // INSTRUMENT_BB
             me->_closed = true; // just mark segment as closed, no writes will be done.
             throw;
         };
@@ -960,6 +971,7 @@ public:
                 // If we run batch mode and find ourselves not fit in a non-empty
                 // buffer, we must force a cycle and wait for it (to keep flush order)
                 // This will most likely cause parallel writes, and consecutive flushes.
+                // INSTRUMENT_BB
                 return write_result::must_sync;
             }
             background_cycle();
@@ -1284,7 +1296,7 @@ db::commitlog::segment_manager::list_descriptors(sstring dirname) {
 
 future<> db::commitlog::segment_manager::init() {
     auto descs = co_await list_descriptors(cfg.commit_log_location);
-
+    // INSTRUMENT_BB
     assert(_reserve_segments.empty()); // _segments_to_replay must not pick them up
     segment_id_type id = *cfg.base_segment_id;
     for (auto& d : descs) {
@@ -1828,6 +1840,7 @@ future<> db::commitlog::segment_manager::shutdown() {
 }
 
 void db::commitlog::segment_manager::add_file_to_delete(sstring filename, descriptor d) {
+    // INSTRUMENT_BB
     assert(!_files_to_delete.contains(filename));
     _files_to_delete.emplace(std::move(filename), std::move(d));
 }
@@ -1900,11 +1913,13 @@ future<> db::commitlog::segment_manager::delete_segments(std::vector<sstring> fi
                     // data is not replayed. Changing the name will
                     // cause header ID to be invalid in the file -> ignored
                     try {
+                        // INSTRUMENT_BB
                         co_await rename_file(filename, dst);
                         auto b = _recycled_segments.push(std::move(dst));
                         assert(b); // we set this to max_size_t so...
                         continue;
                     } catch (...) {
+                        // INSTRUMENT_BB
                         recycle_error = std::current_exception();
                         // fallthrough
                     }
@@ -1941,6 +1956,7 @@ future<> db::commitlog::segment_manager::delete_segments(std::vector<sstring> fi
 
 void db::commitlog::segment_manager::abort_recycled_list(std::exception_ptr ep) {
     // may not call here with elements in list. that would leak files.
+    // INSTRUMENT_BB
     assert(_recycled_segments.empty());
     _recycled_segments.abort(ep);
     // and ensure next lap(s) still has a queue
@@ -2157,6 +2173,7 @@ future<db::rp_handle> db::commitlog::add(const cf_id_type& id,
 
 future<db::rp_handle> db::commitlog::add_entry(const cf_id_type& id, const commitlog_entry_writer& cew, timeout_clock::time_point timeout)
 {
+    // INSTRUMENT_BB
     assert(id == cew.schema()->id());
 
     class cl_entry_writer final : public entry_writer {
@@ -2522,6 +2539,7 @@ db::commitlog::read_log_file(sstring filename, sstring pfx, seastar::io_priority
              * If not, this is small slack space in the chunk end, and we should just go
              * to the next.
              */
+            // INSTRUMENT_BB
             assert(pos <= next);
             if ((pos + entry_header_size) >= next) {
                 co_await skip(next - pos);
@@ -2548,6 +2566,7 @@ db::commitlog::read_log_file(sstring filename, sstring pfx, seastar::io_priority
                 auto actual_size = checksum;
                 auto end = pos + actual_size - entry_header_size - sizeof(uint32_t);
 
+                // INSTRUMENT_BB
                 assert(end <= next);
                 // really small read...
                 buf = co_await frag_reader.read_exactly(fin, sizeof(uint32_t));

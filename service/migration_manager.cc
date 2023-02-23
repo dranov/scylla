@@ -94,6 +94,7 @@ void migration_manager::init_messaging_service()
 {
     auto update_schema = [this] {
         //FIXME: future discarded.
+        // INSTRUMENT_BB
         (void)with_gate(_background_tasks, [this] {
             mlogger.debug("features changed, recalculating schema version");
             return db::schema_tables::recalculate_schema_version(_storage_proxy.container(), _feat);
@@ -160,6 +161,7 @@ void migration_manager::init_messaging_service()
     });
     _messaging.register_get_schema_version([this] (unsigned shard, table_schema_version v) {
         // FIXME: should this get an smp_service_group? Probably one separate from reads and writes.
+        // INSTRUMENT_BB
         return container().invoke_on(shard, [v] (auto&& sp) {
             mlogger.debug("Schema version request for {}", v);
             return local_schema_registry().get_frozen(v);
@@ -193,6 +195,7 @@ void migration_manager::schedule_schema_pull(const gms::inet_address& endpoint, 
 
     if (endpoint != utils::fb_utilities::get_broadcast_address() && value) {
         // FIXME: discarded future
+        // INSTRUMENT_BB
         (void)maybe_schedule_schema_pull(utils::UUID{value->value}, endpoint).handle_exception([endpoint] (auto ep) {
             mlogger.warn("Fail to pull schema from {}: {}", endpoint, ep);
         });
@@ -319,6 +322,7 @@ future<> migration_manager::merge_schema_from(netw::messaging_service::msg_addr 
     auto i = _schema_pulls.find(id);
     if (i == _schema_pulls.end()) {
         // FIXME: Drop entries for removed nodes (or earlier).
+        // INSTRUMENT_BB
         i = _schema_pulls.emplace(std::piecewise_construct,
                 std::tuple<netw::messaging_service::msg_addr>(id),
                 std::tuple<std::function<future<>()>>([id, this] {

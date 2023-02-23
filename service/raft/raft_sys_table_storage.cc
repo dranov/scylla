@@ -152,6 +152,7 @@ future<raft::snapshot_descriptor> raft_sys_table_storage::load_snapshot_descript
 
 future<> raft_sys_table_storage::store_snapshot_descriptor(const raft::snapshot_descriptor& snap, size_t preserve_log_entries) {
     // TODO: check that snap.idx refers to an already persisted entry
+    // INSTRUMENT_BB
     return execute_with_linearization_point([this, &snap, preserve_log_entries] () -> future<> {
         static const auto store_snp_cql = format("INSERT INTO system.{} (group_id, server_id, snapshot_id, idx, term) VALUES (?, ?, ?, ?, ?)",
             db::system_keyspace::RAFT_SNAPSHOTS);
@@ -186,6 +187,7 @@ future<> raft_sys_table_storage::store_snapshot_descriptor(const raft::snapshot_
             co_return;
         }
         // TODO: make truncation and snapshot update in `system.raft` atomic
+        // INSTRUMENT_BB
         co_await truncate_log_tail(raft::index_t(static_cast<uint64_t>(snap.idx) - static_cast<uint64_t>(preserve_log_entries)));
     });
 }
@@ -277,6 +279,7 @@ future<> raft_sys_table_storage::truncate_log(raft::index_t idx) {
 future<> raft_sys_table_storage::abort() {
     // wait for pending write requests to complete.
     // TODO: should we wait for all kinds of requests?
+    // INSTRUMENT_BB
     return std::move(_pending_op_fut);
 }
 

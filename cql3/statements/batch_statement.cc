@@ -250,8 +250,10 @@ future<shared_ptr<cql_transport::messages::result_message>> batch_statement::do_
     // FIXME: we don't support nulls here
 #if 0
     if (options.get_consistency() == null)
+        // INSTRUMENT_BB
         throw new InvalidRequestException("Invalid empty consistency level");
     if (options.getSerialConsistency() == null)
+        // INSTRUMENT_BB
         throw new InvalidRequestException("Invalid empty serial consistency level");
 #endif
     if (_has_conditions) {

@@ -1219,6 +1219,7 @@ future<> paxos_response_handler::learn_decision(lw_shared_ptr<paxos::proposal> d
     // a range of (decision, schema, token)-tuples. Both code paths diverge on `create_write_response_handler`.
     // We use the first path for CDC mutations (if present) and the latter for "paxos mutations".
     // Attempts to send both kinds of mutations in one shot caused an infinite loop.
+    // INSTRUMENT_BB
     future<> f_cdc = make_ready_future<>();
     if (_schema->cdc_options().enabled()) {
         auto update_mut = decision->update.unfreeze(_schema);
@@ -2132,6 +2133,7 @@ future<> storage_proxy::mutate_begin(unique_response_handler_vector ids, db::con
 // this function should be called with a future that holds result of mutation attempt (usually
 // future returned by mutate_begin()). The future should be ready when function is called.
 future<> storage_proxy::mutate_end(future<> mutate_result, utils::latency_counter lc, write_stats& stats, tracing::trace_state_ptr trace_state) {
+    // INSTRUMENT_BB
     assert(mutate_result.available());
     stats.write.mark(lc.stop().latency());
     if (lc.is_start()) {
@@ -2350,6 +2352,7 @@ future<> storage_proxy::do_mutate(std::vector<mutation> mutations, db::consisten
 future<> storage_proxy::replicate_counter_from_leader(mutation m, db::consistency_level cl, tracing::trace_state_ptr tr_state,
                                                       clock_type::time_point timeout, service_permit permit) {
     // FIXME: do not send the mutation to itself, it has already been applied (it is not incorrect to do so, though)
+    // INSTRUMENT_BB
     return mutate_internal(std::array<mutation, 1>{std::move(m)}, cl, true, std::move(tr_state), std::move(permit), timeout);
 }
 
@@ -2954,6 +2957,7 @@ public:
             // if the error is because of a connection disconnect and there is no targets to speculate
             // wait for timeout in hope that the client will issue speculative read
             // FIXME: resolver should have access to all replicas and try another one in this case
+            // INSTRUMENT_BB
             return;
         }
         if (_block_for + _failed > _target_count_for_cl) {
@@ -4010,6 +4014,7 @@ storage_proxy::query_result_local(schema_ptr s, lw_shared_ptr<query::read_comman
         });
     } else {
         // FIXME: adjust multishard_mutation_query to accept an smp_service_group and propagate it there
+        // INSTRUMENT_BB
         tracing::trace(trace_state, "Start querying token range {}", pr);
         return query_nonsingular_data_locally(s, cmd, {pr}, opts, trace_state, timeout).then(
                 [trace_state = std::move(trace_state)] (rpc::tuple<foreign_ptr<lw_shared_ptr<query::result>>, cache_temperature>&& r_ht) {
@@ -4736,6 +4741,7 @@ inet_address_vector_replica_set storage_proxy::get_live_endpoints(replica::keysp
 void storage_proxy::sort_endpoints_by_proximity(inet_address_vector_replica_set& eps) {
     locator::i_endpoint_snitch::get_local_snitch_ptr()->sort_by_proximity(utils::fb_utilities::get_broadcast_address(), eps);
     // FIXME: before dynamic snitch is implement put local address (if present) at the beginning
+    // INSTRUMENT_BB
     auto it = boost::range::find(eps, utils::fb_utilities::get_broadcast_address());
     if (it != eps.end() && it != eps.begin()) {
         std::iter_swap(it, eps.begin());
@@ -4908,6 +4914,7 @@ void storage_proxy::init_messaging_service(shared_ptr<migration_manager> mm) {
                        [cl, src_addr, timeout = *t, fms = std::move(fms), trace_state_ptr = std::move(trace_state_ptr), &ms, mm] (std::vector<frozen_mutation_and_schema>& mutations) mutable {
             return parallel_for_each(std::move(fms), [&mutations, src_addr, &ms, mm] (frozen_mutation& fm) {
                 // FIXME: optimise for cases when all fms are in the same schema
+                // INSTRUMENT_BB
                 auto schema_version = fm.schema_version();
                 return mm->get_schema_for_write(schema_version, std::move(src_addr), ms).then([&mutations, fm = std::move(fm)] (schema_ptr s) mutable {
                     mutations.emplace_back(frozen_mutation_and_schema { std::move(fm), std::move(s) });
@@ -5476,6 +5483,7 @@ void storage_proxy::on_leave_cluster(const gms::inet_address& endpoint) {
 void storage_proxy::on_up(const gms::inet_address& endpoint) {};
 
 void storage_proxy::retire_view_response_handlers(noncopyable_function<bool(const abstract_write_response_handler&)> filter_fun) {
+    // INSTRUMENT_BB
     assert(thread::running_in_thread());
     auto it = _view_update_handlers_list->begin();
     while (it != _view_update_handlers_list->end()) {

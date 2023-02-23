@@ -60,16 +60,19 @@ event::schema_change::schema_change(change_type change, target_type target, sstr
 {
     switch (target) {
     case event::schema_change::target_type::KEYSPACE:
+        // INSTRUMENT_BB
         assert(this->arguments.empty());
         break;
     case event::schema_change::target_type::TYPE:
     case event::schema_change::target_type::TABLE:
+        // INSTRUMENT_BB
         // just the name
         assert(this->arguments.size() == 1);
         break;
     case event::schema_change::target_type::FUNCTION:
     case event::schema_change::target_type::AGGREGATE:
         // at least the name
+        // INSTRUMENT_BB
         assert(this->arguments.size() >= 1);
         break;
     }

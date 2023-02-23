@@ -167,6 +167,7 @@ future<> controller::do_start_server() {
 }
 
 future<> controller::stop_server() {
+    // INSTRUMENT_BB
     assert(this_shard_id() == 0);
 
     if (_stopped) {

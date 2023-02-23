@@ -182,10 +182,12 @@ void raft_rpc::read_quorum_reply(raft::server_id from, raft::read_quorum_reply c
     _client->read_quorum_reply(from, check_quorum_reply);
 }
 
+// INSTRUMENT_FUNC
 future<raft::read_barrier_reply> raft_rpc::execute_read_barrier(raft::server_id from) {
     return _client->execute_read_barrier(from);
 }
 
+// INSTRUMENT_FUNC
 future<raft::snapshot_reply> raft_rpc::apply_snapshot(raft::server_id from, raft::install_snapshot snp) {
     co_await _sm.transfer_snapshot(_address_map.get_inet_address(from), snp.snp);
     if (_shutdown_gate.is_closed()) {
@@ -194,10 +196,12 @@ future<raft::snapshot_reply> raft_rpc::apply_snapshot(raft::server_id from, raft
     co_return co_await _client->apply_snapshot(from, std::move(snp));
 }
 
+// INSTRUMENT_FUNC
 future<raft::add_entry_reply> raft_rpc::execute_add_entry(raft::server_id from, raft::command cmd) {
     return _client->execute_add_entry(from, std::move(cmd));
 }
 
+// INSTRUMENT_FUNC
 future<raft::add_entry_reply> raft_rpc::execute_modify_config(raft::server_id from,
     std::vector<raft::server_address> add,
     std::vector<raft::server_id> del) {
