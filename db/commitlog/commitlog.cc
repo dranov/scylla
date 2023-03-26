@@ -835,7 +835,7 @@ public:
         co_await _pending_ops.run_with_ordered_post_op(rp, [&]() -> future<> {
             auto view = fragmented_temporary_buffer::view(buf);
             view.remove_suffix(buf.size_bytes() - size);
-            // INSTRUMENT_BB
+
             assert(size == view.size_bytes());
 
             if (view.empty()) {
@@ -910,7 +910,7 @@ public:
                 replay_position rp(_desc.id, position_type(fp));
                 co_await _pending_ops.wait_for_pending(rp, timeout);
                 
-                // INSTRUMENT_BB
+
                 assert(_segment_manager->cfg.mode != sync_mode::BATCH || _flush_pos > fp);
                 if (_flush_pos <= fp) {
                     // previous op we were waiting for was not sync one, so it did not flush
