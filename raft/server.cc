@@ -369,7 +369,6 @@ future<> server_impl::wait_for_entry(entry_id eid, wait_type type) {
     auto [it, inserted] = container.emplace(eid.idx, op_status{eid.term, promise<>()});
     if (!inserted) {
         // No two leaders can exist with the same term.
-        // INSTRUMENT_BB
         assert(it->second.term != eid.term);
 
         auto term_of_commit_idx = *_fsm->log_term_for(_fsm->commit_idx());
@@ -561,25 +560,21 @@ future<> server_impl::modify_config(std::vector<server_address> add, std::vector
     }
 }
 
-// INSTRUMENT_FUNC
 void server_impl::append_entries(server_id from, append_request append_request) {
     _stats.append_entries_received++;
     _fsm->step(from, std::move(append_request));
 }
 
-// INSTRUMENT_FUNC
 void server_impl::append_entries_reply(server_id from, append_reply reply) {
     _stats.append_entries_reply_received++;
     _fsm->step(from, std::move(reply));
 }
 
-// INSTRUMENT_FUNC
 void server_impl::request_vote(server_id from, vote_request vote_request) {
     _stats.request_vote_received++;
     _fsm->step(from, std::move(vote_request));
 }
 
-// INSTRUMENT_FUNC
 void server_impl::request_vote_reply(server_id from, vote_reply vote_reply) {
     _stats.request_vote_reply_received++;
     _fsm->step(from, std::move(vote_reply));

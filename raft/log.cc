@@ -53,7 +53,6 @@ index_t log::next_idx() const {
 }
 
 void log::truncate_uncommitted(index_t idx) {
-    // INSTRUMENT_BB
     assert(idx >= _first_idx);
     auto it = _log.begin() + (idx - _first_idx);
     _log.erase(it, _log.end());
@@ -99,14 +98,12 @@ std::pair<bool, term_t> log::match_term(index_t idx, term_t term) const {
     if (idx == 0) {
         // Special case of empty log on leader,
         // TLA+ line 324.
-        // INSTRUMENT_BB
         return std::make_pair(true, term_t(0));
     }
 
     // We got an AppendEntries inside out snapshot, it has to much by
     // log matching property
     if (idx < _snapshot.idx) {
-        // INSTRUMENT_BB
         return std::make_pair(true, last_term());
     }
 
@@ -119,7 +116,6 @@ std::pair<bool, term_t> log::match_term(index_t idx, term_t term) const {
 
         if (i >= _log.size()) {
             // We have a gap between the follower and the leader.
-            // INSTRUMENT_BB
             return std::make_pair(false, term_t(0));
         }
 

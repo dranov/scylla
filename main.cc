@@ -679,7 +679,6 @@ To start the scylla server proper, simply invoke as: scylla server (or just scyl
                 auto ip = utils::resolve(cfg->prometheus_address || cfg->listen_address, family, preferred).get0();
 
                 //FIXME discarded future
-                // INSTRUMENT_BB
                 prometheus::config pctx;
                 pctx.metric_help = "Scylla server statistics";
                 pctx.prefix = cfg->prometheus_prefix();
@@ -1033,7 +1032,6 @@ To start the scylla server proper, simply invoke as: scylla server (or just scyl
                     }).get();
                     supervisor::notify("replaying commit log - removing old commitlog segments");
                     //FIXME: discarded future
-                    // INSTRUMENT_BB
                     (void)cl->delete_segments(std::move(paths));
                 }
             }
@@ -1056,7 +1054,6 @@ To start the scylla server proper, simply invoke as: scylla server (or just scyl
             // group that was effectively used in the bulk of it (compaction). Soon it will become
             // streaming
 
-            // INSTRUMENT_BB
             db.invoke_on_all([&proxy] (replica::database& db) {
                 for (auto& x : db.get_column_families()) {
                     replica::column_family& cf = *(x.second);

@@ -132,7 +132,6 @@ void fsm::advance_commit_idx(index_t leader_commit_idx) {
     }
 }
 
-// INSTRUMENT_FUNC
 void fsm::update_current_term(term_t current_term)
 {
     assert(_current_term < current_term);
@@ -234,7 +233,6 @@ void fsm::become_candidate(bool is_prevote, bool is_leadership_transfer) {
         // This means we must still have access to the previous configuration.
         // Become a candidate only if we were previously a voter.
         auto prev_cfg = _log.get_prev_configuration();
-        // INSTRUMENT_BB
         assert(prev_cfg);
         if (!prev_cfg->can_vote(_my_id)) {
             // We weren't a voter before.
@@ -589,7 +587,6 @@ void fsm::tick() {
     }
 }
 
-// INSTRUMENT_FUNC
 void fsm::append_entries(server_id from, append_request&& request) {
     logger.trace("append_entries[{}] received ct={}, prev idx={} prev term={} commit idx={}, idx={} num entries={}",
             _my_id, request.current_term, request.prev_log_idx, request.prev_log_term,
@@ -750,7 +747,6 @@ void fsm::request_vote(server_id from, vote_request&& request) {
 
     // ...and we believe the candidate is up to date.
     if (can_vote && _log.is_up_to_date(request.last_log_idx, request.last_log_term)) {
-        // INSTRUMENT_BB
 
         logger.trace("{} [term: {}, index: {}, last log term: {}, voted_for: {}] "
             "voted for {} [log_term: {}, log_index: {}]",
@@ -1042,7 +1038,6 @@ void fsm::broadcast_read_quorum(read_id id) {
 }
 
 void fsm::handle_read_quorum_reply(server_id from, const read_quorum_reply& reply) {
-    // INSTRUMENT_BB
     assert(is_leader());
     logger.trace("handle_read_quorum_reply[{}] got reply from {} for id {}", _my_id, from, reply.id);
     auto& state = leader_state();
@@ -1085,7 +1080,6 @@ std::optional<std::pair<read_id, index_t>> fsm::start_read_barrier(server_id req
     }
 
     auto term_for_commit_idx = _log.term_for(_commit_idx);
-    // INSTRUMENT_BB
     assert(term_for_commit_idx);
 
     if (*term_for_commit_idx != _current_term) {
