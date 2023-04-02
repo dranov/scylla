@@ -1367,6 +1367,7 @@ future<> storage_service::join_cluster() {
 }
 
 future<> storage_service::replicate_to_all_cores(mutable_token_metadata_ptr tmptr) noexcept {
+    // INSTRUMENT_BB
     assert(this_shard_id() == 0);
 
     slogger.debug("Replicating token_metadata to all cores");

@@ -119,6 +119,7 @@ std::pair<bool, term_t> log::match_term(index_t idx, term_t term) const {
 
         if (i >= _log.size()) {
             // We have a gap between the follower and the leader.
+            // INSTRUMENT_BB
             return std::make_pair(false, term_t(0));
         }
 

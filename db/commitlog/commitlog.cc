@@ -663,6 +663,7 @@ public:
     // See class comment for info
     future<sseg_ptr> flush() {
         auto me = shared_from_this();
+        // INSTRUMENT_BB
         assert(me.use_count() > 1);
         uint64_t pos = _file_pos;
 
@@ -725,6 +726,7 @@ public:
             co_await _file.flush();
             // TODO: retry/ignore/fail/stop - optional behaviour in origin.
             // we fast-fail the whole commit.
+            // INSTRUMENT_BB
             _flush_pos = std::max(pos, _flush_pos);
             ++_segment_manager->totals.flush_count;
             clogger.trace("{} synced to {}", *this, _flush_pos);
@@ -786,7 +788,6 @@ public:
         _buffer_ostream = { };
         _num_allocs = 0;
 
-        // INSTRUMENT_BB
         assert(me.use_count() > 1);
 
         auto out = buf.get_ostream();

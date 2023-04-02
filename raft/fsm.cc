@@ -132,6 +132,7 @@ void fsm::advance_commit_idx(index_t leader_commit_idx) {
     }
 }
 
+// INSTRUMENT_FUNC
 void fsm::update_current_term(term_t current_term)
 {
     assert(_current_term < current_term);
