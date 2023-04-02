@@ -177,6 +177,7 @@ lists::do_append(const expr::constant& list_value,
                     params._options.next_list_append_seq());
                 auto uuid = bytes(reinterpret_cast<const int8_t*>(uuid1.data()), uuid1.size());
                 // FIXME: can e be empty?
+                // INSTRUMENT_BB
                 appended.cells.emplace_back(
                     std::move(uuid),
                     params.make_cell(*ltype->value_comparator(), e, atomic_cell::collection_member::yes));

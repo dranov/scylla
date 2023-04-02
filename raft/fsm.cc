@@ -233,6 +233,7 @@ void fsm::become_candidate(bool is_prevote, bool is_leadership_transfer) {
         // This means we must still have access to the previous configuration.
         // Become a candidate only if we were previously a voter.
         auto prev_cfg = _log.get_prev_configuration();
+        // INSTRUMENT_BB
         assert(prev_cfg);
         if (!prev_cfg->can_vote(_my_id)) {
             // We weren't a voter before.
@@ -747,7 +748,7 @@ void fsm::request_vote(server_id from, vote_request&& request) {
 
     // ...and we believe the candidate is up to date.
     if (can_vote && _log.is_up_to_date(request.last_log_idx, request.last_log_term)) {
-
+        // INSTRUMENT_BB
         logger.trace("{} [term: {}, index: {}, last log term: {}, voted_for: {}] "
             "voted for {} [log_term: {}, log_index: {}]",
             _my_id, _current_term, _log.last_idx(), _log.last_term(), _voted_for,

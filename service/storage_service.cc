@@ -354,6 +354,7 @@ void storage_service::maybe_start_sys_dist_ks() {
  */
 static future<> set_gossip_tokens(gms::gossiper& g,
         const std::unordered_set<dht::token>& tokens, std::optional<cdc::generation_id> cdc_gen_id) {
+    // INSTRUMENT_BB
     assert(!tokens.empty());
 
     // Order is important: both the CDC streams timestamp and tokens must be known when a node handles our status.
@@ -505,6 +506,7 @@ void storage_service::join_token_ring(int delay) {
 
     if (!db::system_keyspace::bootstrap_complete()) {
         // If we're not bootstrapping then we shouldn't have chosen a CDC streams timestamp yet.
+        // INSTRUMENT_BB
         assert(should_bootstrap() || !_cdc_gen_id);
 
         // Don't try rewriting CDC stream description tables.
@@ -641,6 +643,7 @@ void storage_service::bootstrap() {
 
         // After we pick a generation timestamp, we start gossiping it, and we stick with it.
         // We don't do any other generation switches (unless we crash before complecting bootstrap).
+        // INSTRUMENT_BB
         assert(!_cdc_gen_id);
 
         _cdc_gen_id = _cdc_gen_service.local().make_new_generation(_bootstrap_tokens, !is_first_node()).get0();
@@ -1282,6 +1285,7 @@ future<> storage_service::stop_transport() {
 }
 
 future<> storage_service::drain_on_shutdown() {
+    // INSTRUMENT_BB
     assert(this_shard_id() == 0);
     return (_operation_mode == mode::DRAINING || _operation_mode == mode::DRAINED) ?
         _drain_finished.get_future() : do_drain();
@@ -1387,6 +1391,7 @@ future<> storage_service::replicate_to_all_cores(mutable_token_metadata_ptr tmpt
         // TODO: at the moment create on shard 0 first
         // but in the future we may want to use hash() % smp::count
         // to evenly distribute the load.
+        // INSTRUMENT_BB
         auto& db = _db.local();
         auto keyspaces = db.get_all_keyspaces();
         for (auto& ks_name : keyspaces) {
@@ -3185,6 +3190,7 @@ future<> storage_service::mutate_token_metadata(std::function<future<> (mutable_
 }
 
 future<> storage_service::update_pending_ranges(mutable_token_metadata_ptr tmptr, sstring reason) {
+    // INSTRUMENT_BB
     assert(this_shard_id() == 0);
 
     // long start = System.currentTimeMillis();

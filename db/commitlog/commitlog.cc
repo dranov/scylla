@@ -674,12 +674,14 @@ public:
 
         // Run like this to ensure flush ordering, and making flushes "waitable"
         co_await _pending_ops.run_with_ordered_post_op(rp, [] {}, [&] {
+            // INSTRUMENT_BB
             assert(_pending_ops.has_operation(rp));
             return do_flush(pos);
         });
         co_return me;
     }
     future<sseg_ptr> terminate() {
+        // INSTRUMENT_BB
         assert(_closed);
         if (!std::exchange(_terminated, true)) {
             // write a terminating zero block iff we are ending (a reused)
@@ -719,6 +721,7 @@ public:
         }
 
         try {
+            // INSTRUMENT_BB
             co_await _file.flush();
             // TODO: retry/ignore/fail/stop - optional behaviour in origin.
             // we fast-fail the whole commit.
@@ -1836,6 +1839,7 @@ future<> db::commitlog::segment_manager::shutdown() {
 }
 
 void db::commitlog::segment_manager::add_file_to_delete(sstring filename, descriptor d) {
+    // INSTRUMENT_BB
     assert(!_files_to_delete.contains(filename));
     _files_to_delete.emplace(std::move(filename), std::move(d));
 }

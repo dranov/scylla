@@ -279,6 +279,7 @@ private:
 
     utils::observer<> make_stop_request_observer(utils::observable<>& sro) {
         return sro.observe([this] () mutable {
+            // INSTRUMENT_BB
             assert(!_unclosed_partition);
             consume_end_of_stream();
         });
