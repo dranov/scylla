@@ -131,7 +131,7 @@ void fsm::advance_commit_idx(index_t leader_commit_idx) {
     }
 }
 
-
+// INSTRUMENT_FUNC
 void fsm::update_current_term(term_t current_term)
 {
     assert(_current_term < current_term);
@@ -149,6 +149,7 @@ void fsm::reset_election_timeout() {
                             _log.get_configuration().current.size())})};
 }
 
+// INSTRUMENT_FUNC
 void fsm::become_leader() {
     assert(!std::holds_alternative<leader>(_state));
     _state.emplace<leader>(_config.max_log_size, *this);
@@ -166,6 +167,7 @@ void fsm::become_leader() {
         _my_id, _log.stable_idx(), _log.last_idx());
 }
 
+// INSTRUMENT_FUNC
 void fsm::become_follower(server_id leader) {
     if (leader == _my_id) {
         on_internal_error(logger, "fsm cannot become a follower of itself");
@@ -178,6 +180,7 @@ void fsm::become_follower(server_id leader) {
     }
 }
 
+// INSTRUMENT_FUNC
 void fsm::become_candidate(bool is_prevote, bool is_leadership_transfer) {
     // When starting a campain we need to reset current leader otherwise
     // disruptive server prevention will stall an election if quorum of nodes
@@ -500,14 +503,17 @@ void fsm::tick_leader() {
             switch(progress.state) {
             case follower_progress::state::PROBE:
                 // allow one probe to be resent per follower per time tick
+                // INSTRUMENT_BB
                 progress.probe_sent = false;
                 break;
             case follower_progress::state::PIPELINE:
+                // INSTRUMENT_BB
                 if (progress.in_flight == follower_progress::max_in_flight) {
                     progress.in_flight--; // allow one more packet to be sent
                 }
                 break;
             case follower_progress::state::SNAPSHOT:
+                // INSTRUMENT_BB
                 continue;
             }
             if (progress.match_idx < _log.last_idx() || progress.commit_idx < _commit_idx) {
@@ -632,6 +638,7 @@ void fsm::append_entries_reply(server_id from, append_reply&& reply) {
     follower_progress& progress = *opt_progress;
 
     if (progress.state == follower_progress::state::PIPELINE) {
+        // INSTRUMENT_BB
         if (progress.in_flight) {
             // in_flight is not precise, so do not let it underflow
             progress.in_flight--;
@@ -639,6 +646,7 @@ void fsm::append_entries_reply(server_id from, append_reply&& reply) {
     }
 
     if (progress.state == follower_progress::state::SNAPSHOT) {
+        // INSTRUMENT_BB
         logger.trace("append_entries_reply[{}->{}]: ignored in snapshot state", _my_id, from);
         return;
     }
@@ -736,7 +744,7 @@ void fsm::request_vote(server_id from, vote_request&& request) {
 
     // ...and we believe the candidate is up to date.
     if (can_vote && _log.is_up_to_date(request.last_log_idx, request.last_log_term)) {
-
+        // INSTRUMENT_BB
         logger.trace("{} [term: {}, index: {}, last log term: {}, voted_for: {}] "
             "voted for {} [log_term: {}, log_index: {}]",
             _my_id, _current_term, _log.last_idx(), _log.last_term(), _voted_for,
@@ -763,6 +771,7 @@ void fsm::request_vote(server_id from, vote_request&& request) {
         // viable candidate, so it should not reset its election
         // timer, to avoid election disruption by non-viable
         // candidates.
+        // INSTRUMENT_BB
         logger.trace("{} [term: {}, index: {}, log_term: {}, voted_for: {}] "
             "rejected vote for {} [current_term: {}, log_term: {}, log_index: {}, is_prevote: {}]",
             _my_id, _current_term, _log.last_idx(), _log.last_term(), _voted_for,
@@ -787,8 +796,10 @@ void fsm::request_vote_reply(server_id from, vote_reply&& reply) {
 
     switch (state.votes.tally_votes()) {
     case vote_result::UNKNOWN:
+        // INSTRUMENT_BB
         break;
     case vote_result::WON:
+        // INSTRUMENT_BB
         if (state.is_prevote) {
             logger.trace("request_vote_reply[{}] won prevote", _my_id);
             become_candidate(false);
@@ -798,6 +809,7 @@ void fsm::request_vote_reply(server_id from, vote_reply&& reply) {
         }
         break;
     case vote_result::LOST:
+        // INSTRUMENT_BB
         become_follower(server_id{});
         break;
     }
@@ -935,6 +947,7 @@ void fsm::install_snapshot_reply(server_id from, snapshot_reply&& reply) {
 
     if (reply.success) {
         // If snapshot was successfully transferred start replication immediately
+        // INSTRUMENT_BB
         replicate_to(progress, false);
     }
     // Otherwise wait for a heartbeat. Next attempt will move us to SNAPSHOT state
@@ -955,6 +968,7 @@ bool fsm::apply_snapshot(snapshot_descriptor snp, size_t trailing, bool local) {
     // leading to serializability violations.
     const auto& current_snp = _log.get_snapshot();
     if (snp.idx <= current_snp.idx || (!local && snp.idx <= _commit_idx)) {
+        // INSTRUMENT_BB
         logger.error("apply_snapshot[{}]: ignore outdated snapshot {}/{} current one is {}/{}, commit_idx={}",
                         _my_id, snp.id, snp.idx, current_snp.id, current_snp.idx, _commit_idx);
         return false;
@@ -977,6 +991,7 @@ void fsm::transfer_leadership(logical_clock::duration timeout) {
     if (configuration::voter_count(get_configuration().current) == 1 && leader && leader->can_vote) {
         // If there is only one voter and it is this node we cannot have another node
         // to transfer leadership to
+        // INSTRUMENT_BB
         throw raft::no_other_voting_member();
     }
 
@@ -1031,12 +1046,14 @@ void fsm::handle_read_quorum_reply(server_id from, const read_quorum_reply& repl
 
     if (reply.id <= state.max_read_id_with_quorum) {
         // We already have a quorum for a more resent id, so no need to recalculate
+        // INSTRUMENT_BB
         return;
     }
 
     read_id new_committed_read = leader_state().tracker.committed(state.max_read_id_with_quorum);
 
     if (new_committed_read <= state.max_read_id_with_quorum) {
+        // INSTRUMENT_BB
         return; // nothing new is committed
     }
 

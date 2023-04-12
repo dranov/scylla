@@ -28,9 +28,11 @@ service_level_options service_level_options::replace_defaults(const service_leve
     }, ret.timeout);
     switch (ret.workload) {
     case workload_type::unspecified:
+        // INSTRUMENT_BB
         ret.workload = default_values.workload;
         break;
     case workload_type::delete_marker:
+        // INSTRUMENT_BB
         ret.workload = workload_type::unspecified;
         break;
     default:
@@ -66,10 +68,18 @@ service_level_options service_level_options::merge_with(const service_level_opti
 
 std::string_view service_level_options::to_string(const workload_type& wt) {
     switch (wt) {
-    case workload_type::unspecified: return "unspecified";
-    case workload_type::batch: return "batch";
-    case workload_type::interactive: return "interactive";
-    case workload_type::delete_marker: return "delete_marker";
+    case workload_type::unspecified: 
+        // INSTRUMENT_BB
+        return "unspecified";
+    case workload_type::batch:
+        // INSTRUMENT_BB 
+        return "batch";
+    case workload_type::interactive:
+        // INSTRUMENT_BB 
+        return "interactive";
+    case workload_type::delete_marker:
+        // INSTRUMENT_BB 
+        return "delete_marker";
     }
     abort();
 }

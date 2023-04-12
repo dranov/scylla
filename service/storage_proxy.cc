@@ -2128,6 +2128,7 @@ future<> storage_proxy::mutate_begin(unique_response_handler_vector ids, db::con
 // this function should be called with a future that holds result of mutation attempt (usually
 // future returned by mutate_begin()). The future should be ready when function is called.
 future<> storage_proxy::mutate_end(future<> mutate_result, utils::latency_counter lc, write_stats& stats, tracing::trace_state_ptr trace_state) {
+    // INSTRUMENT_BB
     assert(mutate_result.available());
     stats.write.mark(lc.stop().latency());
     if (lc.is_start()) {
@@ -2950,9 +2951,11 @@ public:
             // if the error is because of a connection disconnect and there is no targets to speculate
             // wait for timeout in hope that the client will issue speculative read
             // FIXME: resolver should have access to all replicas and try another one in this case
+            // INSTRUMENT_BB
             return;
         }
         if (_block_for + _failed > _target_count_for_cl) {
+            // INSTRUMENT_BB
             fail_request(std::make_exception_ptr(read_failure_exception(_schema->ks_name(), _schema->cf_name(), _cl, _cl_responses, _failed, _block_for, _data_result)));
         }
     }
@@ -5472,6 +5475,7 @@ void storage_proxy::on_leave_cluster(const gms::inet_address& endpoint) {
 void storage_proxy::on_up(const gms::inet_address& endpoint) {};
 
 void storage_proxy::retire_view_response_handlers(noncopyable_function<bool(const abstract_write_response_handler&)> filter_fun) {
+    // INSTRUMENT_BB
     assert(thread::running_in_thread());
     auto it = _view_update_handlers_list->begin();
     while (it != _view_update_handlers_list->end()) {

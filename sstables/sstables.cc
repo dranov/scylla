@@ -1282,6 +1282,7 @@ future<> sstable::update_info_for_opened_data() {
     }).then([this] {
         return _index_file.size().then([this] (auto size) {
             _index_file_size = size;
+            // INSTRUMENT_BB
             assert(!_cached_index_file);
             _cached_index_file = seastar::make_shared<cached_file>(_index_file,
                                                                    index_page_cache_metrics,
@@ -2575,6 +2576,7 @@ sstable::remove_sstable_with_temp_toc(sstring ks, sstring cf, sstring dir, int64
         sstlog.warn("Deleting components of sstable from {}.{} of generation {} that has a temporary TOC", ks, cf, generation);
 
         // assert that toc doesn't exist for sstable with temporary toc.
+        // INSTRUMENT_BB
         assert(toc == false);
 
         auto tmptoc = sstable_io_check(error_handler, file_exists, filename(dir, ks, cf, v, generation, f, component_type::TemporaryTOC)).get0();
@@ -2836,6 +2838,7 @@ delete_atomically(std::vector<shared_sstable> ssts) {
             } else {
                 // All sstables are assumed to be in the same column_family, hence
                 // sharing their base directory.
+                // INSTRUMENT_BB
                 assert (sstdir == sst->get_dir());
             }
         }
@@ -2897,6 +2900,7 @@ future<> replay_pending_delete_log(sstring pending_delete_log) {
     sstlog.debug("Reading pending_deletes log file {}", pending_delete_log);
     return seastar::async([pending_delete_log = std::move(pending_delete_log)] {
         sstring pending_delete_dir = dirname(pending_delete_log);
+        // INSTRUMENT_BB
         assert(sstable::is_pending_delete_dir(fs::path(pending_delete_dir)));
         try {
             auto sstdir = dirname(pending_delete_dir);

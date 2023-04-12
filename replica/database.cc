@@ -353,6 +353,7 @@ database::database(const db::config& cfg, database_config dbcfg, service::migrat
     , _wasm_engine(std::make_unique<wasm::engine>())
     , _stop_barrier(std::move(barrier))
 {
+    // INSTRUMENT_BB
     assert(dbcfg.available_memory != 0); // Detect misconfigured unit tests, see #7544
 
     local_schema_registry().init(*this); // TODO: we're never unbound.
@@ -2169,6 +2170,7 @@ future<> database::truncate(const keyspace& ks, column_family& cf, timestamp_fun
     // We nowadays do not flush tables with sstables but autosnapshot=false. This means
     // the low_mark assertion does not hold, because we maybe/probably never got around to 
     // creating the sstables that would create them.
+    // INSTRUMENT_BB
     assert(!did_flush || low_mark <= rp || rp == db::replay_position());
     rp = std::max(low_mark, rp);
     co_await parallel_for_each(cf.views(), [this, truncated_at, should_flush] (view_ptr v) -> future<> {

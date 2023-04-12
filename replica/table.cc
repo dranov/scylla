@@ -275,6 +275,7 @@ flat_mutation_reader_v2 table::make_streaming_reader(schema_ptr schema, reader_p
 }
 
 future<std::vector<locked_cell>> table::lock_counter_cells(const mutation& m, db::timeout_clock::time_point timeout) {
+    // INSTRUMENT_BB
     assert(m.schema() == _counter_cell_locks->schema());
     return _counter_cell_locks->lock_cells(m.decorated_key(), partition_cells_range(m.partition()), timeout);
 }
@@ -1616,6 +1617,7 @@ future<> table::clear() {
 // NOTE: does not need to be futurized, but might eventually, depending on
 // if we implement notifications, whatnot.
 future<db::replay_position> table::discard_sstables(db_clock::time_point truncated_at) {
+    // INSTRUMENT_BB
     assert(_compaction_manager.compaction_disabled(this));
 
     struct pruner {
@@ -1675,6 +1677,7 @@ future<db::replay_position> table::discard_sstables(db_clock::time_point truncat
 }
 
 void table::set_schema(schema_ptr s) {
+    // INSTRUMENT_BB
     assert(s->is_counter() == _schema->is_counter());
     tlogger.debug("Changing schema version of {}.{} ({}) from {} to {}",
                 _schema->ks_name(), _schema->cf_name(), _schema->id(), _schema->version(), s->version());

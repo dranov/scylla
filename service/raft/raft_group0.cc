@@ -167,6 +167,7 @@ future<> raft_group0::abort() {
 
 
 future<> raft_group0::join_group0() {
+    // INSTRUMENT_BB
     assert(this_shard_id() == 0);
     if (!_raft_gr.is_enabled()) {
         co_return;
@@ -234,6 +235,7 @@ future<> raft_group0::leave_group0(std::optional<gms::inet_address> node) {
     if (!_raft_gr.is_enabled()) {
         co_return;
     }
+    // INSTRUMENT_BB
     assert(this_shard_id() == 0);
     raft::server_address my_addr;
     raft::server_id remove_addr;

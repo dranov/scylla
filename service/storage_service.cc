@@ -138,15 +138,32 @@ enum class node_external_status {
 
 static node_external_status map_operation_mode(storage_service::mode m) {
     switch (m) {
-    case storage_service::mode::STARTING: return node_external_status::STARTING;
-    case storage_service::mode::JOINING: return node_external_status::JOINING;
-    case storage_service::mode::NORMAL: return node_external_status::NORMAL;
-    case storage_service::mode::LEAVING: return node_external_status::LEAVING;
-    case storage_service::mode::DECOMMISSIONED: return node_external_status::DECOMMISSIONED;
-    case storage_service::mode::DRAINING: return node_external_status::DRAINING;
-    case storage_service::mode::DRAINED: return node_external_status::DRAINED;
-    case storage_service::mode::MOVING: return node_external_status::MOVING;
+    case storage_service::mode::STARTING: 
+        // INSTRUMENT_BB
+        return node_external_status::STARTING;
+    case storage_service::mode::JOINING: 
+        // INSTRUMENT_BB
+        return node_external_status::JOINING;
+    case storage_service::mode::NORMAL: 
+        // INSTRUMENT_BB
+        return node_external_status::NORMAL;
+    case storage_service::mode::LEAVING: 
+        // INSTRUMENT_BB
+        return node_external_status::LEAVING;
+    case storage_service::mode::DECOMMISSIONED:
+        // INSTRUMENT_BB 
+        return node_external_status::DECOMMISSIONED;
+    case storage_service::mode::DRAINING: 
+        // INSTRUMENT_BB
+        return node_external_status::DRAINING;
+    case storage_service::mode::DRAINED:
+        // INSTRUMENT_BB 
+        return node_external_status::DRAINED;
+    case storage_service::mode::MOVING: 
+        // INSTRUMENT_BB
+        return node_external_status::MOVING;
     }
+    // INSTRUMENT_BB
     return node_external_status::UNKNOWN;
 }
 
@@ -337,6 +354,7 @@ void storage_service::maybe_start_sys_dist_ks() {
  */
 static future<> set_gossip_tokens(gms::gossiper& g,
         const std::unordered_set<dht::token>& tokens, std::optional<cdc::generation_id> cdc_gen_id) {
+    // INSTRUMENT_BB
     assert(!tokens.empty());
 
     // Order is important: both the CDC streams timestamp and tokens must be known when a node handles our status.
@@ -488,6 +506,7 @@ void storage_service::join_token_ring(int delay) {
 
     if (!db::system_keyspace::bootstrap_complete()) {
         // If we're not bootstrapping then we shouldn't have chosen a CDC streams timestamp yet.
+        // INSTRUMENT_BB
         assert(should_bootstrap() || !_cdc_gen_id);
 
         // Don't try rewriting CDC stream description tables.
@@ -624,6 +643,7 @@ void storage_service::bootstrap() {
 
         // After we pick a generation timestamp, we start gossiping it, and we stick with it.
         // We don't do any other generation switches (unless we crash before complecting bootstrap).
+        // INSTRUMENT_BB
         assert(!_cdc_gen_id);
 
         _cdc_gen_id = _cdc_gen_service.local().make_new_generation(_bootstrap_tokens, !is_first_node()).get0();
@@ -1099,20 +1119,27 @@ future<> storage_service::on_change(inet_address endpoint, application_state sta
         }
         sstring move_name = pieces[0];
         if (move_name == sstring(versioned_value::STATUS_BOOTSTRAPPING)) {
+            // INSTRUMENT_BB
             co_await handle_state_bootstrap(endpoint);
         } else if (move_name == sstring(versioned_value::STATUS_NORMAL) ||
                    move_name == sstring(versioned_value::SHUTDOWN)) {
+            // INSTRUMENT_BB
             co_await handle_state_normal(endpoint);
         } else if (move_name == sstring(versioned_value::REMOVING_TOKEN) ||
                    move_name == sstring(versioned_value::REMOVED_TOKEN)) {
+            // INSTRUMENT_BB
             co_await handle_state_removing(endpoint, pieces);
         } else if (move_name == sstring(versioned_value::STATUS_LEAVING)) {
+            // INSTRUMENT_BB
             co_await handle_state_leaving(endpoint);
         } else if (move_name == sstring(versioned_value::STATUS_LEFT)) {
+            // INSTRUMENT_BB
             co_await handle_state_left(endpoint, pieces);
         } else if (move_name == sstring(versioned_value::STATUS_MOVING)) {
+            // INSTRUMENT_BB
             handle_state_moving(endpoint, pieces);
         } else if (move_name == sstring(versioned_value::HIBERNATE)) {
+            // INSTRUMENT_BB
             co_await handle_state_replacing(endpoint);
         } else {
             co_return; // did nothing.
@@ -1257,6 +1284,7 @@ future<> storage_service::stop_transport() {
 }
 
 future<> storage_service::drain_on_shutdown() {
+    // INSTRUMENT_BB
     assert(this_shard_id() == 0);
     return (_operation_mode == mode::DRAINING || _operation_mode == mode::DRAINED) ?
         _drain_finished.get_future() : do_drain();
@@ -1338,6 +1366,7 @@ future<> storage_service::join_cluster() {
 }
 
 future<> storage_service::replicate_to_all_cores(mutable_token_metadata_ptr tmptr) noexcept {
+    // INSTRUMENT_BB
     assert(this_shard_id() == 0);
 
     slogger.debug("Replicating token_metadata to all cores");
@@ -2357,6 +2386,7 @@ future<node_ops_cmd_response> storage_service::node_ops_cmd_handler(gms::inet_ad
         node_ops_cmd_check(coordinator, req);
 
         if (req.cmd == node_ops_cmd::removenode_prepare) {
+            // INSTRUMENT_BB
             if (req.leaving_nodes.size() > 1) {
                 auto msg = format("removenode[{}]: Could not removenode more than one node at a time: leaving_nodes={}", req.ops_uuid, req.leaving_nodes);
                 slogger.warn("{}", msg);
@@ -2382,12 +2412,15 @@ future<node_ops_cmd_response> storage_service::node_ops_cmd_handler(gms::inet_ad
             meta.start().get();
             _node_ops.emplace(ops_uuid, std::move(meta));
         } else if (req.cmd == node_ops_cmd::removenode_heartbeat) {
+            // INSTRUMENT_BB
             slogger.debug("removenode[{}]: Updated heartbeat from coordinator={}", req.ops_uuid,  coordinator);
             node_ops_update_heartbeat(ops_uuid);
         } else if (req.cmd == node_ops_cmd::removenode_done) {
+            // INSTRUMENT_BB
             slogger.info("removenode[{}]: Marked ops done from coordinator={}", req.ops_uuid, coordinator);
             node_ops_done(ops_uuid);
         } else if (req.cmd == node_ops_cmd::removenode_sync_data) {
+            // INSTRUMENT_BB
             auto it = _node_ops.find(ops_uuid);
             if (it == _node_ops.end()) {
                 throw std::runtime_error(format("removenode[{}]: Can not find ops_uuid={}", ops_uuid, ops_uuid));
@@ -2404,8 +2437,10 @@ future<node_ops_cmd_response> storage_service::node_ops_cmd_handler(gms::inet_ad
                 }
             }
         } else if (req.cmd == node_ops_cmd::removenode_abort) {
+            // INSTRUMENT_BB
             node_ops_abort(ops_uuid);
         } else if (req.cmd == node_ops_cmd::decommission_prepare) {
+            // INSTRUMENT_BB
             if (req.leaving_nodes.size() > 1) {
                 auto msg = format("decommission[{}]: Could not decommission more than one node at a time: leaving_nodes={}", req.ops_uuid, req.leaving_nodes);
                 slogger.warn("{}", msg);
@@ -2431,9 +2466,11 @@ future<node_ops_cmd_response> storage_service::node_ops_cmd_handler(gms::inet_ad
             meta.start().get();
             _node_ops.emplace(ops_uuid, std::move(meta));
         } else if (req.cmd == node_ops_cmd::decommission_heartbeat) {
+            // INSTRUMENT_BB
             slogger.debug("decommission[{}]: Updated heartbeat from coordinator={}", req.ops_uuid,  coordinator);
             node_ops_update_heartbeat(ops_uuid);
         } else if (req.cmd == node_ops_cmd::decommission_done) {
+            // INSTRUMENT_BB
             slogger.info("decommission[{}]: Marked ops done from coordinator={}", req.ops_uuid, coordinator);
             slogger.debug("Triggering off-strategy compaction for all non-system tables on decommission completion");
             _db.invoke_on_all([](replica::database &db) {
@@ -2443,9 +2480,11 @@ future<node_ops_cmd_response> storage_service::node_ops_cmd_handler(gms::inet_ad
             }).get();
             node_ops_done(ops_uuid);
         } else if (req.cmd == node_ops_cmd::decommission_abort) {
+            // INSTRUMENT_BB
             node_ops_abort(ops_uuid);
         } else if (req.cmd == node_ops_cmd::replace_prepare) {
             // Mark the replacing node as replacing
+            // INSTRUMENT_BB
             if (req.replace_nodes.size() > 1) {
                 auto msg = format("replace[{}]: Could not replace more than one node at a time: replace_nodes={}", req.ops_uuid, req.replace_nodes);
                 slogger.warn("{}", msg);
@@ -2476,6 +2515,7 @@ future<node_ops_cmd_response> storage_service::node_ops_cmd_handler(gms::inet_ad
             _node_ops.emplace(ops_uuid, std::move(meta));
         } else if (req.cmd == node_ops_cmd::replace_prepare_mark_alive) {
             // Wait for local node has marked replacing node as alive
+            // INSTRUMENT_BB
             auto nodes = boost::copy_range<std::vector<inet_address>>(req.replace_nodes| boost::adaptors::map_values);
             try {
                 _gossiper.wait_alive(nodes, std::chrono::milliseconds(120 * 1000)).get();
@@ -2486,20 +2526,25 @@ future<node_ops_cmd_response> storage_service::node_ops_cmd_handler(gms::inet_ad
             }
         } else if (req.cmd == node_ops_cmd::replace_prepare_pending_ranges) {
             // Update the pending_ranges for the replacing node
+            // INSTRUMENT_BB
             slogger.debug("replace[{}]: Updated pending_ranges from coordinator={}", req.ops_uuid, coordinator);
             mutate_token_metadata([coordinator, &req, this] (mutable_token_metadata_ptr tmptr) mutable {
                 return update_pending_ranges(tmptr, format("replace {}", req.replace_nodes));
             }).get();
         } else if (req.cmd == node_ops_cmd::replace_heartbeat) {
+            // INSTRUMENT_BB
             slogger.debug("replace[{}]: Updated heartbeat from coordinator={}", req.ops_uuid, coordinator);
             node_ops_update_heartbeat(ops_uuid);
         } else if (req.cmd == node_ops_cmd::replace_done) {
+            // INSTRUMENT_BB
             slogger.info("replace[{}]: Marked ops done from coordinator={}", req.ops_uuid, coordinator);
             node_ops_done(ops_uuid);
         } else if (req.cmd == node_ops_cmd::replace_abort) {
+            // INSTRUMENT_BB
             node_ops_abort(ops_uuid);
         } else if (req.cmd == node_ops_cmd::bootstrap_prepare) {
             // Mark the bootstrap node as bootstrapping
+            // INSTRUMENT_BB
             if (req.bootstrap_nodes.size() > 1) {
                 auto msg = format("bootstrap[{}]: Could not bootstrap more than one node at a time: bootstrap_nodes={}", req.ops_uuid, req.bootstrap_nodes);
                 slogger.warn("{}", msg);
@@ -2529,14 +2574,18 @@ future<node_ops_cmd_response> storage_service::node_ops_cmd_handler(gms::inet_ad
             meta.start().get();
             _node_ops.emplace(ops_uuid, std::move(meta));
         } else if (req.cmd == node_ops_cmd::bootstrap_heartbeat) {
+            // INSTRUMENT_BB
             slogger.debug("bootstrap[{}]: Updated heartbeat from coordinator={}", req.ops_uuid, coordinator);
             node_ops_update_heartbeat(ops_uuid);
         } else if (req.cmd == node_ops_cmd::bootstrap_done) {
+            // INSTRUMENT_BB
             slogger.info("bootstrap[{}]: Marked ops done from coordinator={}", req.ops_uuid, coordinator);
             node_ops_done(ops_uuid);
         } else if (req.cmd == node_ops_cmd::bootstrap_abort) {
+            // INSTRUMENT_BB
             node_ops_abort(ops_uuid);
         } else {
+            // INSTRUMENT_BB
             auto msg = format("node_ops_cmd_handler: ops_uuid={}, unknown cmd={}", req.ops_uuid, req.cmd);
             slogger.warn("{}", msg);
             throw std::runtime_error(msg);

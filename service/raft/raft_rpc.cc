@@ -122,6 +122,7 @@ future<raft::add_entry_reply> raft_rpc::send_add_entry(raft::server_id id, const
         netw::msg_addr(_address_map.get_inet_address(id)), db::no_timeout, _group_id, _server_id, id, cmd);
 }
 
+// INSTRUMENT_FUNC
 future<raft::add_entry_reply> raft_rpc::send_modify_config(raft::server_id id,
     const std::vector<raft::server_address>& add,
     const std::vector<raft::server_id>& del) {
@@ -133,6 +134,7 @@ future<raft::read_barrier_reply> raft_rpc::execute_read_barrier_on_leader(raft::
    return ser::raft_rpc_verbs::send_raft_execute_read_barrier_on_leader(&_messaging, netw::msg_addr(_address_map.get_inet_address(id)), db::no_timeout, _group_id, _server_id, id);
 }
 
+// INSTRUMENT_FUNC
 void raft_rpc::add_server(raft::server_id id, raft::server_info info) {
     // Parse gms::inet_address from server_info
     auto in = ser::as_input_stream(bytes_view(info));
@@ -141,10 +143,12 @@ void raft_rpc::add_server(raft::server_id id, raft::server_info info) {
     _address_map.set(id, ser::deserialize(in, boost::type<gms::inet_address>()), false);
 }
 
+// INSTRUMENT_FUNC
 void raft_rpc::remove_server(raft::server_id id) {
     _address_map.erase(id);
 }
 
+// INSTRUMENT_FUNC
 future<> raft_rpc::abort() {
     return _shutdown_gate.close();
 }
@@ -181,6 +185,7 @@ future<raft::read_barrier_reply> raft_rpc::execute_read_barrier(raft::server_id 
     return _client->execute_read_barrier(from);
 }
 
+// INSTRUMENT_FUNC
 future<raft::snapshot_reply> raft_rpc::apply_snapshot(raft::server_id from, raft::install_snapshot snp) {
     co_await _sm.transfer_snapshot(_address_map.get_inet_address(from), snp.snp);
     if (_shutdown_gate.is_closed()) {
@@ -189,10 +194,12 @@ future<raft::snapshot_reply> raft_rpc::apply_snapshot(raft::server_id from, raft
     co_return co_await _client->apply_snapshot(from, std::move(snp));
 }
 
+// INSTRUMENT_FUNC
 future<raft::add_entry_reply> raft_rpc::execute_add_entry(raft::server_id from, raft::command cmd) {
     return _client->execute_add_entry(from, std::move(cmd));
 }
 
+// INSTRUMENT_FUNC
 future<raft::add_entry_reply> raft_rpc::execute_modify_config(raft::server_id from,
     std::vector<raft::server_address> add,
     std::vector<raft::server_id> del) {

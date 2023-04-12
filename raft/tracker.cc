@@ -32,17 +32,20 @@ bool follower_progress::is_stray_reject(const append_reply::rejected& rejected) 
 
     switch (state) {
     case follower_progress::state::PIPELINE:
+        // INSTRUMENT_BB
         break;
     case follower_progress::state::PROBE:
         // In PROBE state we send a single append request `req` with `req.prev_log_idx == next_idx - 1`.
         // When the follower generates a rejected response `r`, it sets `r.non_matching_idx = req.prev_log_idx`.
         // Thus the reject either satisfies `rejected.non_matching_idx == next_idx - 1` or is stray.
+        // INSTRUMENT_BB
         if (rejected.non_matching_idx != index_t(next_idx - 1)) {
             return true;
         }
         break;
     case follower_progress::state::SNAPSHOT:
         // any reject during snapshot transfer is stray one
+        // INSTRUMENT_BB
         return true;
     default:
         assert(false);
@@ -50,11 +53,13 @@ bool follower_progress::is_stray_reject(const append_reply::rejected& rejected) 
     return false;
 }
 
+// INSTRUMENT_FUNC
 void follower_progress::become_probe() {
     state = state::PROBE;
     probe_sent = false;
 }
 
+// INSTRUMENT_FUNC
 void follower_progress::become_pipeline() {
     if (state != state::PIPELINE) {
         // If a previous request was accepted, move to "pipeline" state
@@ -64,6 +69,7 @@ void follower_progress::become_pipeline() {
     }
 }
 
+// INSTRUMENT_FUNC
 void follower_progress::become_snapshot(index_t snp_idx) {
     state = state::SNAPSHOT;
     // If snapshot transfer succeeds, start replicating from the
@@ -75,15 +81,18 @@ void follower_progress::become_snapshot(index_t snp_idx) {
 bool follower_progress::can_send_to() {
     switch (state) {
     case state::PROBE:
+        // INSTRUMENT_BB
         return !probe_sent;
     case state::PIPELINE:
         // allow `max_in_flight` outstanding indexes
         // FIXME: make it smarter
+        // INSTRUMENT_BB
         return in_flight < follower_progress::max_in_flight;
     case state::SNAPSHOT:
         // In this state we are waiting
         // for a snapshot to be transferred
         // before starting to sync the log.
+        // INSTRUMENT_BB
         return false;
     }
     assert(false);

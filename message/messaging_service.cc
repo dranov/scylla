@@ -727,6 +727,7 @@ shared_ptr<messaging_service::rpc_protocol_client_wrapper> messaging_service::ge
                                     remote_addr, laddr);
 
     auto res = _clients[idx].emplace(id, shard_info(std::move(client)));
+    // INSTRUMENT_BB
     assert(res.second);
     it = res.first;
     uint32_t src_cpu_id = this_shard_id();

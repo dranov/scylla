@@ -343,7 +343,7 @@ future<> server_impl::wait_for_entry(entry_id eid, wait_type type) {
     if (eid.idx <= _fsm->commit_idx()) {
         if ((type == wait_type::committed) ||
             (type == wait_type::applied && eid.idx <= _applied_idx)) {
-
+            // INSTRUMENT_BB
             auto term = _fsm->log_term_for(eid.idx);
 
             _stats.waiters_awoken++;
@@ -594,6 +594,7 @@ void server_impl::read_quorum_reply(server_id from, struct read_quorum_reply rea
     _fsm->step(from, std::move(read_quorum_reply));
 }
 
+// INSTRUMENT_FUNC
 void server_impl::notify_waiters(std::map<index_t, op_status>& waiters,
         const std::vector<log_entry_ptr>& entries) {
     index_t commit_idx = entries.back()->idx;
@@ -637,6 +638,7 @@ void server_impl::notify_waiters(std::map<index_t, op_status>& waiters,
     }
 }
 
+// INSTRUMENT_FUNC
 void server_impl::drop_waiters(std::optional<index_t> idx) {
     auto drop = [&] (std::map<index_t, op_status>& waiters) {
         while (waiters.size() != 0) {
@@ -939,6 +941,7 @@ future<> server_impl::applier_fiber() {
 
                 index_t last_idx = batch.back()->idx;
                 term_t last_term = batch.back()->term;
+                // INSTRUMENT_BB
                 assert(last_idx == _applied_idx + batch.size());
 
                 boost::range::copy(
@@ -984,6 +987,7 @@ future<> server_impl::applier_fiber() {
                }
             } else {
                 snapshot_descriptor& snp = std::get<1>(v);
+                // INSTRUMENT_BB
                 assert(snp.idx >= _applied_idx);
                 // Apply snapshot it to the state machine
                 logger.trace("[{}] apply_fiber applying snapshot {}", _id, snp.id);
@@ -997,7 +1001,9 @@ future<> server_impl::applier_fiber() {
         }
     } catch(stop_apply_fiber& ex) {
         // the fiber is aborted
+        // INSTRUMENT_BB
     } catch (...) {
+        // INSTRUMENT_BB
         logger.error("[{}] applier fiber stopped because of the error: {}", _id, std::current_exception());
     }
     co_return;

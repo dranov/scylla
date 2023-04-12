@@ -1569,13 +1569,16 @@ void cql_server::response::serialize(const event::schema_change& event, uint8_t 
         write_string(event.keyspace);
         switch (event.target) {
         case event::schema_change::target_type::KEYSPACE:
+            // INSTRUMENT_BB
             break;
         case event::schema_change::target_type::TYPE:
         case event::schema_change::target_type::TABLE:
+            // INSTRUMENT_BB
             write_string(event.arguments[0]);
             break;
         case event::schema_change::target_type::FUNCTION:
         case event::schema_change::target_type::AGGREGATE:
+            // INSTRUMENT_BB
             write_string(event.arguments[0]);
             write_string_list(std::vector<sstring>(event.arguments.begin() + 1, event.arguments.end()));
             break;
@@ -1589,12 +1592,14 @@ void cql_server::response::serialize(const event::schema_change& event, uint8_t 
         case event::schema_change::target_type::AGGREGATE:
             // The v1/v2 protocol is unable to represent these changes. Tell the
             // client that the keyspace was updated instead.
+            // INSTRUMENT_BB
             write_string(to_string(event::schema_change::change_type::UPDATED));
             write_string(event.keyspace);
             write_string("");
             break;
         case event::schema_change::target_type::TABLE:
         case event::schema_change::target_type::KEYSPACE:
+            // INSTRUMENT_BB
             write_string(to_string(event.change));
             write_string(event.keyspace);
             if (event.target == event::schema_change::target_type::TABLE) {

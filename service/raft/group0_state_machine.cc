@@ -87,7 +87,7 @@ future<> group0_state_machine::apply(std::vector<raft::command_cref> command) {
         // access to quorum, which means we cannot allow partially applied commands. We need to ensure that either the entire
         // change is applied and the state ID is updated or none of this happens.
         // E.g. use a write-ahead-entry which contains all this information and make sure it's replayed during restarts.
-
+        // INSTRUMENT_BB
         co_await std::visit(make_visitor(
         [&] (schema_change& chng) -> future<> {
             return _mm.merge_schema_from(netw::messaging_service::msg_addr(std::move(cmd.creator_addr)), std::move(chng.mutations));

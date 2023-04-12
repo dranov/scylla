@@ -265,6 +265,7 @@ future<> raft_sys_table_storage::store_log_entries(const std::vector<raft::log_e
     });
 }
 
+// INSTRUMENT_FUNC
 future<> raft_sys_table_storage::truncate_log(raft::index_t idx) {
     return execute_with_linearization_point([this, idx] {
         static const auto truncate_cql = format("DELETE FROM system.{} WHERE group_id = ? AND \"index\" >= ?",
@@ -276,9 +277,11 @@ future<> raft_sys_table_storage::truncate_log(raft::index_t idx) {
 future<> raft_sys_table_storage::abort() {
     // wait for pending write requests to complete.
     // TODO: should we wait for all kinds of requests?
+    // INSTRUMENT_BB
     return std::move(_pending_op_fut);
 }
 
+// INSTRUMENT_FUNC
 future<> raft_sys_table_storage::truncate_log_tail(raft::index_t idx) {
     static const auto truncate_cql = format("DELETE FROM system.{} WHERE group_id = ? AND \"index\" <= ?", db::system_keyspace::RAFT);
     return _qp.execute_internal(truncate_cql, {_group_id.id, int64_t(idx)}).discard_result();
